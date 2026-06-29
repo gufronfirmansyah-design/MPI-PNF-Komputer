@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
+    <title>Arcade-Edu: System Load Tug of War</title>
+    <style>
+        /* ═══════════════════════════════════════════
+           🎨 CSS STYLES (8-BIT RETRO ARCADE THEME)
+           ═══════════════════════════════════════════ */
+        :root {
+            --bg-color: #111111;
+            --retro-cyan: #00ffff;
+            --retro-magenta: #ff00ff;
+            --retro-yellow: #ffff00;
+            --retro-green: #33ff00;
+            --text-main: #ffffff;
+            --font-main: 'Courier New', Courier, monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: var(--font-main); text-transform: uppercase; }
+        
+        body {
+            background-color: var(--bg-color); color: var(--text-main);
+            overflow: hidden; touch-action: none;
+            display: flex; justify-content: center; align-items: center; 
+            height: 100vh; /* Fallback */
+            height: 100dvh;
+            width: 100vw;
+        }
+
+        /* Container utama game - DIKUNCI RASIO 16:9 */
+        #app {
+            width: 100vw;
+            height: calc(100vw * 9 / 16);
+            max-height: 100dvh;
+            max-width: calc(100dvh * 16 / 9);
+            position: relative;
+            background: #000;
+            display: flex; flex-direction: column; overflow: hidden;
+            border: clamp(2px, 0.5vw, 8px) solid #333;
+            box-shadow: 0 0 2vw rgba(0,255,255,0.1);
+        }
+
+        /* Utility Classes */
+        .hidden { display: none !important; }
+        .text-center { text-align: center; }
+        
+        /* Retro Typography Shadows */
+        .glow-blue { color: var(--retro-cyan); text-shadow: 0.3vw 0.3vw 0px #0055aa; }
+        .glow-red { color: var(--retro-magenta); text-shadow: 0.3vw 0.3vw 0px #aa0055; }
+        
+        /* Buttons - Chunky Arcade Style */
+        .btn {
+            background: #000; color: var(--retro-cyan); border: clamp(2px, 0.4vw, 4px) solid var(--retro-cyan);
+            padding: clamp(8px, 1.5vw, 15px) clamp(15px, 3vw, 30px); 
+            font-size: clamp(1rem, 2vw, 1.5rem); font-weight: bold; border-radius: 0;
+            cursor: pointer; transition: all 0.1s; margin: 1%;
+            box-shadow: 0.4vw 0.4vw 0px #0055aa;
+            font-family: var(--font-main);
+        }
+        .btn:hover, .btn:active {
+            background: var(--retro-cyan); color: #000;
+            transform: translate(0.3vw, 0.3vw); box-shadow: 0.1vw 0.1vw 0px #0055aa;
+        }
+        .btn-red {
+            color: var(--retro-magenta); border-color: var(--retro-magenta); box-shadow: 0.4vw 0.4vw 0px #aa0055;
+        }
+        .btn-red:hover, .btn-red:active { 
+            background: var(--retro-magenta); color: white;
+            box-shadow: 0.1vw 0.1vw 0px #aa0055; transform: translate(0.3vw, 0.3vw);
+        }
+        
+        /* Tombol yang sedang dipilih (Active Select) */
+        .btn.active-select {
+            background: var(--retro-yellow) !important; color: #000 !important;
+            border-color: var(--retro-yellow) !important; box-shadow: 0.2vw 0.2vw 0px #d4aa00 !important;
+            transform: translate(0.3vw, 0.3vw);
+        }
+        
+        /* Header / Top Bar */
+        #top-bar { 
+            position: absolute; top: 0; left: 0; width: 100%;
+            display: flex; justify-content: space-between; padding: 2% 3%; z-index: 10; 
+        }
+        .icon-btn { background: none; border: none; color: var(--text-main); font-size: clamp(1rem, 2vw, 1.5rem); font-weight:bold; cursor: pointer; transition: 0.1s; text-shadow: 2px 2px 0px #555; }
+        .icon-btn:hover { color: var(--retro-yellow); transform: scale(1.1); }
+
+        /* Screens */
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: inherit; z-index: 5; padding: 2%;
+        }
+
+        /* Splash & Menu */
+        .title { font-size: clamp(2rem, 5vw, 4.5rem); font-weight: 900; margin-bottom: 2%; color: var(--retro-yellow); text-align: center; line-height: 1.2; text-shadow: 0.4vw 0.4vw 0px #aa0000; letter-spacing: 2px;}
+        .subtitle { font-size: clamp(0.8rem, 1.5vw, 1.2rem); color: #aaa; margin-bottom: 4%; text-align: center; background: #222; padding: 1%; border: 2px dashed #555;}
+        
+        /* Tug of War Arena - MENGGUNAKAN ASET GAMBAR */
+        #arena {
+            width: 90%; 
+            height: 25%; min-height: 80px;
+            background-color: #111;
+            background-image: url('asset/bg_arena.png'); /* DIPISAH AGAR SELALU MUNCUL */
+            background-position: center;
+            background-size: cover;
+            background-repeat: no-repeat;
+            border: clamp(2px, 0.5vw, 6px) solid #fff; border-radius: 0;
+            position: relative; margin: 1% auto; display: flex; align-items: center; overflow: hidden;
+        }
+        .rope { 
+            width: 100%; height: 15%; min-height: 10px;
+            background-image: url('asset/rope_texture.png');
+            background-position: center;
+            background-size: contain;
+            background-repeat: repeat-x;
+            position: absolute; z-index: 1;
+        }
+        .marker {
+            width: 8%; height: 80%; max-width: 60px;
+            background-image: url('asset/rope_marker.png');
+            background-position: center;
+            background-size: contain;
+            background-repeat: no-repeat;
+            position: absolute;
+            left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 3;
+            transition: left 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .avatar { 
+            height: 80%; width: 15%; object-fit: contain; pointer-events: none;
+            position: absolute; z-index: 2; top: 50%; transform: translateY(-50%); transition: all 0.2s; 
+        }
+        
+        #avatar-left { left: 4%; filter: none; }
+        #avatar-right { right: 4%; filter: none; }
+        
+        .zone-left { position: absolute; left: 0; width: 50%; height: 100%; background: transparent; border-right: 4px dashed rgba(255, 255, 255, 0.4); }
+        .zone-right { position: absolute; right: 0; width: 50%; height: 100%; background: transparent; }
+
+        /* Gameplay Info (Dipindah ke atas sejajar Timer) */
+        #game-info { width: 95%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 1%; z-index: 6;}
+        
+        .player-top-info { display: flex; align-items: center; gap: clamp(10px, 2vw, 20px); }
+        .player-top-info.reverse { flex-direction: row-reverse; }
+
+        .score-box { background: #000; padding: clamp(4px, 1vw, 10px) clamp(10px, 2vw, 20px); border: clamp(2px, 0.4vw, 4px) solid #fff; box-shadow: 0.3vw 0.3vw 0px #555; }
+        .score-blue { color: var(--retro-cyan); border-color: var(--retro-cyan); }
+        .score-red { color: var(--retro-magenta); border-color: var(--retro-magenta); }
+        .turn-ind { font-size: clamp(1rem, 2vw, 1.3rem); font-weight: bold; margin-bottom: 0; text-transform: uppercase; letter-spacing: 2px; }
+
+        #timer-box { font-size: clamp(2rem, 5vw, 3rem); color: var(--retro-yellow); text-align: center; text-shadow: 0.3vw 0.3vw 0px #d4aa00; }
+        .timer-warning { color: red !important; animation: blinker 0.5s infinite; text-shadow: 0.3vw 0.3vw 0px #800 !important; }
+
+        /* Split Question Area */
+        #questions-wrapper { width: 95%; display: flex; gap: 2%; margin-top: 1%; flex-grow: 1; margin-bottom: 2%; z-index: 6; min-height: 0;}
+        .q-panel {
+            flex: 1; background: #000; padding: 2%; border-radius: 0;
+            border: clamp(2px, 0.4vw, 4px) solid #fff; box-shadow: 0.5vw 0.5vw 0px #333; display: flex; flex-direction: column; text-align: center;
+            overflow-y: auto;
+        }
+        .q-text { font-size: clamp(0.9rem, 1.8vw, 1.2rem); margin-bottom: 2%; color: var(--retro-yellow); flex-grow: 1; display: flex; align-items: center; justify-content: center; font-weight: bold; background: #111; padding: 2%; border: 2px dashed #555;}
+        
+        .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2%; }
+        .option-btn {
+            background: #111; border: clamp(2px, 0.3vw, 4px) solid #777; color: white; padding: clamp(8px, 1.5vw, 15px);
+            font-size: clamp(0.7rem, 1.5vw, 1rem); border-radius: 0; cursor: pointer; transition: 0.1s; text-align: left; font-weight: bold; font-family: var(--font-main);
+            box-shadow: 0.2vw 0.2vw 0px #444;
+        }
+        .option-btn:hover:not(:disabled) { background: #333; transform: translate(2px, 2px); box-shadow: 0px 0px 0px #444; border-color: #fff; }
+        .option-btn.correct { background: var(--retro-green) !important; border-color: #fff !important; color: #000; box-shadow: 0.2vw 0.2vw 0px #080;}
+        .option-btn.wrong { background: var(--retro-magenta) !important; border-color: #fff !important; color: white; box-shadow: 0.2vw 0.2vw 0px #800;}
+        
+        /* Effects */
+        .shake { animation: shake 0.3s; }
+        .flash-red { animation: flashRed 0.5s; }
+        .flash-green { animation: flashGreen 0.5s; }
+
+        @keyframes shake {
+            0% { transform: translate(4px, 4px); } 20% { transform: translate(-4px, -4px); }
+            40% { transform: translate(-4px, 4px); } 60% { transform: translate(4px, -4px); }
+            80% { transform: translate(4px, 4px); } 100% { transform: translate(0, 0); }
+        }
+        @keyframes blinker { 50% { opacity: 0; } }
+        @keyframes flashRed { 0% { background-color: rgba(255,0,85,0.8); } 100% { background-color: inherit; } }
+        @keyframes flashGreen { 0% { background-color: rgba(0,255,102,0.8); } 100% { background-color: inherit; } }
+
+        /* Modal Teacher */
+        .modal {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: #000; border: clamp(3px, 0.6vw, 6px) solid var(--retro-cyan); padding: clamp(15px, 3vw, 30px); border-radius: 0;
+            z-index: 100; text-align: center; box-shadow: 0.8vw 0.8vw 0px #0055aa; width: 80%; max-width: 400px;
+        }
+        .modal input { padding: 3%; font-size: clamp(1.2rem, 2vw, 1.5rem); text-align: center; width: 100%; margin: 5% 0; background: #111; color: var(--retro-cyan); border: 4px solid var(--retro-cyan); font-family: var(--font-main); font-weight: bold;}
+        
+        /* Virtual Keyboard */
+        #virtual-keyboard { width: 100%; max-width: 600px; margin-top: 1%; display: flex; flex-direction: column; gap: 4px; align-items: center; z-index: 20;}
+        .vk-row { display: flex; gap: 4px; justify-content: center; width: 100%; flex-wrap: wrap; }
+        .vk-key { background: #111; border: 2px solid #777; color: white; padding: clamp(4px, 1vw, 8px) clamp(6px, 1.5vw, 12px); font-size: clamp(0.8rem, 1.5vw, 1rem); cursor: pointer; transition: 0.1s; box-shadow: 2px 2px 0px #444; font-family: var(--font-main); font-weight: bold;}
+        .vk-key:hover:not(:disabled), .vk-key:active { background: var(--retro-yellow); color: black; border-color: var(--retro-yellow); transform: translate(2px, 2px); box-shadow: 0px 0px 0px #444; }
+        .vk-key.wide { padding: clamp(4px, 1vw, 8px) clamp(10px, 2vw, 20px); }
+        .name-input-group { display: flex; gap: 2%; margin-bottom: 2%; justify-content: center;}
+        .name-input-box { background: #000; border: 3px solid #555; color: #aaa; padding: 2% 4%; font-size: clamp(0.9rem, 2vw, 1.2rem); text-align: center; min-width: 140px; cursor: pointer; box-shadow: inset 2px 2px 0 #000; }
+        .name-input-box.active { border-color: var(--retro-cyan); color: var(--retro-cyan); background: #001122; text-shadow: 1px 1px 0px #0055aa; border-bottom: 4px solid var(--retro-cyan);}
+        
+        .keyboard-hint { font-size: clamp(0.6rem, 1vw, 0.8rem); color: #888; margin-top: 2%; text-align: center;}
+
+        /* Leaderboard */
+        .leaderboard-table { width: 100%; max-width: 600px; border-collapse: collapse; margin-top: 2%; font-size: clamp(1rem, 2vw, 1.2rem); background: #111; border: 4px solid #fff;}
+        .leaderboard-table th, .leaderboard-table td { padding: 2%; border-bottom: 2px solid #333; text-align: center; border-right: 2px solid #333;}
+        .leaderboard-table tr:nth-child(1) td { color: var(--retro-yellow); font-weight: bold; font-size: clamp(1.2rem, 2.5vw, 1.5rem); text-shadow: 2px 2px 0px #d4aa00;}
+        .leaderboard-table tr:nth-child(2) td { color: #ccc; font-weight: bold; text-shadow: 2px 2px 0px #555;}
+        .leaderboard-table tr:nth-child(3) td { color: #d2691e; font-weight: bold; text-shadow: 2px 2px 0px #8b4513;}
+        
+        /* Particles */
+        .particle { position: absolute; pointer-events: none; border-radius: 0; z-index: 10; border: 2px solid #fff; }
+    </style>
+</head>
+<body>
+
+    <div id="app">
+        <!-- TOP BAR -->
+        <div id="top-bar">
+            <button class="icon-btn" id="btn-back" onclick="goBack()" style="visibility: hidden;">🔙 KEMBALI</button>
+            <div id="status-icons" style="display:flex; gap:15px; align-items:center;">
+                <button class="icon-btn" id="btn-audio" onclick="toggleAudio()">🔊 AUDIO</button>
+                <button class="icon-btn" id="btn-fullscreen" onclick="toggleFullscreen()">⛶ FULL SCREEN</button>
+            </div>
+        </div>
+
+        <!-- 1. SPLASH / MAIN MENU -->
+        <div id="screen-menu" class="screen">
+            <h1 class="title glow-blue" id="game-title" style="cursor: pointer;">
+                <!-- MENGGUNAKAN ASET LOGO -->
+                <img src="asset/game_logo.png" alt="SYSTEM LOAD TUG OF WAR" style="max-width: 80%; max-height: 30vh; object-fit: contain; pointer-events: none; display: block; margin: 0 auto;">
+            </h1>
+            <p class="subtitle">Modul: Merawat Komputer, Merawat Produktivitas</p>
+            
+            <button class="btn" onclick="showScreen('screen-mode')">Mulai Bermain 🚀</button>
+            <button class="btn" onclick="showLeaderboard()">Papan Skor 🏆</button>
+            
+            <p style="margin-top: 5%; color: #555; font-size: clamp(0.7rem, 1vw, 0.9rem);">
+                *Tekan dan tahan logo game selama 3 detik untuk masuk Mode Guru*
+            </p>
+        </div>
+
+        <!-- 2. MODE SELECT -->
+        <div id="screen-mode" class="screen hidden">
+            <h2 class="title glow-blue">Pilih Mode Pemain</h2>
+            <br>
+            <button class="btn" onclick="selectMode('solo')">👤 Solo (Lawan Komputer)</button>
+            <button class="btn" onclick="selectMode('2p')">👥 2 Pemain (1 vs 1)</button>
+        </div>
+
+        <!-- 2.5 NAME INPUT VIRTUAL KEYBOARD -->
+        <div id="screen-name" class="screen hidden">
+            <h2 class="title glow-blue" style="margin-bottom: 2%;">MASUKKAN NAMA</h2>
+            
+            <div class="name-input-group" id="name-inputs-container">
+                <div class="name-input-box active" id="input-p1" onclick="setActiveInput('p1')">PLAYER 1_</div>
+                <div class="name-input-box hidden" id="input-p2" onclick="setActiveInput('p2')">PLAYER 2</div>
+            </div>
+
+            <!-- Virtual QWERTY Keyboard -->
+            <div id="virtual-keyboard">
+                <div class="vk-row">
+                    <button class="vk-key" onclick="vkPress('Q')">Q</button>
+                    <button class="vk-key" onclick="vkPress('W')">W</button>
+                    <button class="vk-key" onclick="vkPress('E')">E</button>
+                    <button class="vk-key" onclick="vkPress('R')">R</button>
+                    <button class="vk-key" onclick="vkPress('T')">T</button>
+                    <button class="vk-key" onclick="vkPress('Y')">Y</button>
+                    <button class="vk-key" onclick="vkPress('U')">U</button>
+                    <button class="vk-key" onclick="vkPress('I')">I</button>
+                    <button class="vk-key" onclick="vkPress('O')">O</button>
+                    <button class="vk-key" onclick="vkPress('P')">P</button>
+                </div>
+                <div class="vk-row">
+                    <button class="vk-key" onclick="vkPress('A')">A</button>
+                    <button class="vk-key" onclick="vkPress('S')">S</button>
+                    <button class="vk-key" onclick="vkPress('D')">D</button>
+                    <button class="vk-key" onclick="vkPress('F')">F</button>
+                    <button class="vk-key" onclick="vkPress('G')">G</button>
+                    <button class="vk-key" onclick="vkPress('H')">H</button>
+                    <button class="vk-key" onclick="vkPress('J')">J</button>
+                    <button class="vk-key" onclick="vkPress('K')">K</button>
+                    <button class="vk-key" onclick="vkPress('L')">L</button>
+                </div>
+                <div class="vk-row">
+                    <button class="vk-key" onclick="vkPress('Z')">Z</button>
+                    <button class="vk-key" onclick="vkPress('X')">X</button>
+                    <button class="vk-key" onclick="vkPress('C')">C</button>
+                    <button class="vk-key" onclick="vkPress('V')">V</button>
+                    <button class="vk-key" onclick="vkPress('B')">B</button>
+                    <button class="vk-key" onclick="vkPress('N')">N</button>
+                    <button class="vk-key" onclick="vkPress('M')">M</button>
+                    <button class="vk-key wide btn-red" onclick="vkPress('DEL')" style="background:#500; border-color:#fff;">⬅️ HAPUS</button>
+                </div>
+                <div class="vk-row">
+                    <button class="vk-key wide" onclick="vkPress('SPACE')" style="width: 50%; min-width: 250px;">[ SPASI ]</button>
+                </div>
+            </div>
+            <p class="keyboard-hint">*Bisa juga mengetik pakai keyboard fisik / remote</p>
+            
+            <button class="btn glow-blue" style="margin-top: 2%; padding: 2% 5%;" onclick="confirmNames()">LANJUT ➡️</button>
+        </div>
+
+        <!-- 3. LEVEL & TIME SELECT -->
+        <div id="screen-settings" class="screen hidden">
+            <h2 class="title glow-blue">Pengaturan Sesi</h2>
+            
+            <h3 style="margin-top:4%; color:var(--retro-yellow); font-size: clamp(1rem, 2.5vw, 1.5rem);">Tingkat Kesulitan:</h3>
+            <div style="display:flex; gap:10px; margin-top:2%;">
+                <button class="btn active-select" id="lvl-easy" onclick="selectLevel('easy')">🟢 Mudah</button>
+                <button class="btn" id="lvl-medium" onclick="selectLevel('medium')">🟠 Sedang</button>
+                <button class="btn" id="lvl-hard" onclick="selectLevel('hard')">🔴 Sulit</button>
+            </div>
+
+            <h3 style="margin-top:4%; color:var(--retro-yellow); font-size: clamp(1rem, 2.5vw, 1.5rem);">Waktu Permainan:</h3>
+            <div style="display:flex; gap:10px; margin-top:2%;">
+                <button class="btn btn-red" id="time-30" onclick="selectTime(30)">⏱️ 30s</button>
+                <button class="btn btn-red" id="time-45" onclick="selectTime(45)">⏱️ 45s</button>
+                <button class="btn btn-red active-select" id="time-60" onclick="selectTime(60)">⏱️ 60s</button>
+            </div>
+
+            <button class="btn glow-blue" style="margin-top: 5%; padding: 2% 5%;" onclick="startGame()">▶️ MULAI!</button>
+        </div>
+
+        <!-- 4. GAMEPLAY -->
+        <div id="screen-game" class="screen hidden" style="justify-content: flex-start; padding-top: clamp(40px, 8%, 80px);">
+            
+            <!-- INFO BAR: Nama Player, Skor & Timer sudah sejajar di sini -->
+            <div id="game-info">
+                <!-- Info Kiri -->
+                <div class="player-top-info" id="info-left">
+                    <div id="turn-ind-left" class="turn-ind glow-blue">PLAYER 1</div>
+                    <div class="score-box score-blue">SKOR: <span id="score-left">0</span></div>
+                </div>
+
+                <!-- Timer Tengah -->
+                <div id="timer-box">60</div>
+
+                <!-- Info Kanan -->
+                <div class="player-top-info reverse" id="info-right">
+                    <div id="turn-ind-right" class="turn-ind glow-red">PLAYER 2</div>
+                    <div class="score-box score-red">SKOR: <span id="score-right">0</span></div>
+                </div>
+            </div>
+
+            <div id="arena">
+                <div class="zone-left"></div>
+                <div class="zone-right"></div>
+                <div class="rope"></div>
+                <!-- MENGGUNAKAN ASET KARAKTER -->
+                <img src="asset/player_left.png" id="avatar-left" class="avatar" alt="P1">
+                <div class="marker" id="rope-marker"></div>
+                <img src="asset/enemy_ai.png" id="avatar-right" class="avatar" alt="P2/AI">
+            </div>
+
+            <div id="questions-wrapper">
+                <!-- Panel Kiri -->
+                <div id="panel-left" class="q-panel">
+                    <div id="q-text-left" class="q-text">Memuat pertanyaan...</div>
+                    <div class="options-grid">
+                        <button class="option-btn" onclick="checkAnswer('left', 0)" id="opt-left-0">A.</button>
+                        <button class="option-btn" onclick="checkAnswer('left', 1)" id="opt-left-1">B.</button>
+                        <button class="option-btn" onclick="checkAnswer('left', 2)" id="opt-left-2">C.</button>
+                        <button class="option-btn" onclick="checkAnswer('left', 3)" id="opt-left-3">D.</button>
+                    </div>
+                </div>
+                <!-- Panel Kanan -->
+                <div id="panel-right" class="q-panel">
+                    <div id="q-text-right" class="q-text">Memuat pertanyaan...</div>
+                    <div class="options-grid">
+                        <button class="option-btn" onclick="checkAnswer('right', 0)" id="opt-right-0">A.</button>
+                        <button class="option-btn" onclick="checkAnswer('right', 1)" id="opt-right-1">B.</button>
+                        <button class="option-btn" onclick="checkAnswer('right', 2)" id="opt-right-2">C.</button>
+                        <button class="option-btn" onclick="checkAnswer('right', 3)" id="opt-right-3">D.</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. GAME OVER -->
+        <div id="screen-result" class="screen hidden">
+            <!-- MENGGUNAKAN ASET PIALA -->
+            <img src="asset/trophy.png" alt="Trophy" style="height: 15vh; object-fit: contain; margin-bottom: 2%;">
+            <h1 class="title" id="result-title">WAKTU HABIS!</h1>
+            <h2 id="result-winner" class="glow-blue" style="font-size: clamp(2rem, 5vw, 3rem); margin: 3% 0;">Player 1 Menang!</h2>
+            
+            <div style="font-size: clamp(1.2rem, 3vw, 1.5rem); margin-bottom: 5%; display:flex; gap: 3vw;">
+                <div class="score-box score-blue">Skor Kiri: <span id="final-score-left">0</span></div>
+                <div class="score-box score-red">Skor Kanan: <span id="final-score-right">0</span></div>
+            </div>
+
+            <button class="btn" onclick="showScreen('screen-menu')">🏠 Kembali ke Menu</button>
+            <button class="btn" onclick="showLeaderboard()">🏆 Papan Skor</button>
+        </div>
+
+        <!-- 6. LEADERBOARD -->
+        <div id="screen-leaderboard" class="screen hidden">
+            <!-- MENGGUNAKAN ASET PIALA -->
+            <img src="asset/trophy.png" alt="Trophy" style="height: 12vh; object-fit: contain; margin-bottom: 2%;">
+            <h2 class="title glow-blue">🏆 TOP 10 PERAWAT PC 🏆</h2>
+            <table class="leaderboard-table" id="lb-table">
+                <tr><th>Peringkat</th><th>Nama/Tim</th><th>Skor</th></tr>
+                <!-- JS akan mengisi ini -->
+            </table>
+            <button class="btn" style="margin-top: 3%;" onclick="showScreen('screen-menu')">🏠 Menu Utama</button>
+        </div>
+
+        <!-- MODAL GURU -->
+        <div id="modal-teacher" class="modal hidden">
+            <!-- MENGGUNAKAN ASET GURU -->
+            <img src="asset/teacher_avatar.png" alt="Guru" style="height: 10vh; object-fit: contain; margin-bottom: 5%;">
+            <h2 style="color:var(--retro-yellow); font-size:clamp(1.2rem, 2.5vw, 1.5rem);">🔒 MODE GURU</h2>
+            <p style="font-size:clamp(0.8rem, 1.5vw, 1rem); margin-top:2%;">Masukkan PIN untuk akses:</p>
+            <input type="password" id="pin-input" maxlength="4">
+            <br>
+            <button class="btn" onclick="checkPIN()">Masuk</button>
+            <button class="btn btn-red" onclick="closeTeacherModal()">Batal</button>
+        </div>
+
+        <div id="modal-dashboard" class="modal hidden" style="width: 90%; max-width: 600px; max-height: 80vh; overflow-y: auto;">
+            <h2 style="color:var(--retro-yellow); font-size:clamp(1.5rem, 3vw, 2rem);">🛠️ DASHBOARD GURU</h2>
+            <p style="margin-bottom: 3%; font-size:clamp(0.8rem, 1.5vw, 1rem);">Bank Soal dimuat dari kode HTML. Edit file HTML dengan Notepad untuk mengubah pertanyaan secara permanen.</p>
+            
+            <button class="btn btn-red" id="btn-reset" onclick="resetLeaderboard()">🗑️ Reset Papan Skor</button>
+            <button class="btn" onclick="closeTeacherModal()">Tutup</button>
+            
+            <div style="margin-top: 4%; text-align: left; background:#111; padding: 3%; border-radius: 5px; font-family: monospace; font-size:clamp(0.7rem, 1.5vw, 0.9rem);">
+                <p>Status Soal Saat Ini:</p>
+                <ul id="stats-soal" style="list-style:none; padding-left:0;"></ul>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════
+        // 📝 EDIT SOAL DI SINI (Buka pakai Notepad)
+        // ═══════════════════════════════════════════
+
+        const PIN_GURU = "1234";
+
+        const BANK_SOAL = [
+            
+            // ╔═══ 🟢 EASY ═══╗
+            { level: "easy", soal: "Cairan yang SANGAT BERBAHAYA jika tumpah ke keyboard?", pilihan: ["Air Minum", "Debu Halus", "Kertas", "Udara"], jawaban: "Air Minum" },
+            { level: "easy", soal: "Mematikan komputer dengan AMAN klik menu...", pilihan: ["Shut Down", "Restart", "Sleep", "Refresh"], jawaban: "Shut Down" },
+            { level: "easy", soal: "Membersihkan debu di layar monitor sebaiknya dilap pakai...", pilihan: ["Kain Kering", "Sikat WC", "Kanebo Basah", "Tisu Kasar"], jawaban: "Kain Kering" },
+            { level: "easy", soal: "Komputer sebaiknya diletakkan di ruangan yang...", pilihan: ["Sejuk & Kering", "Basah", "Panas Terik", "Pengap"], jawaban: "Sejuk & Kering" },
+            { level: "easy", soal: "Alat yang kita gunakan untuk MENGETIK huruf adalah...", pilihan: ["Keyboard", "Mouse", "Monitor", "Printer"], jawaban: "Keyboard" },
+            { level: "easy", soal: "Agar tidak tersetrum, sebelum bongkar PC pastikan kabel listrik...", pilihan: ["Dicabut", "Dicolok", "Dipotong", "Diikat"], jawaban: "Dicabut" },
+            { level: "easy", soal: "Benda yang digerakkan tangan untuk menggeser kursor layar?", pilihan: ["Mouse", "Keyboard", "Speaker", "Kabel"], jawaban: "Mouse" },
+            { level: "easy", soal: "Mencabut Flashdisk dengan aman menggunakan pilihan klik kanan lalu...", pilihan: ["Eject", "Delete", "Format", "Copy"], jawaban: "Eject" },
+            { level: "easy", soal: "Lubang kipas/udara di PC atau laptop sebaiknya TIDAK BOLEH...", pilihan: ["Ditutup barang", "Dibersihkan", "Dibiarkan", "Dilihat"], jawaban: "Ditutup barang" },
+            { level: "easy", soal: "Kalau kipas PC bunyi sangat bising, biasanya di dalamnya banyak...", pilihan: ["Debu Kotor", "Virus", "Semut", "Air"], jawaban: "Debu Kotor" },
+            { level: "easy", soal: "Saat mengetik di keyboard, tenaga jari kita sebaiknya...", pilihan: ["Secukupnya", "Sekuat Tenaga", "Dipukul", "Ditekan keras"], jawaban: "Secukupnya" },
+            { level: "easy", soal: "Makan keripik sambil main komputer bisa membuat keyboard & mouse...", pilihan: ["Lengket & Macet", "Makin Lancar", "Lebih Cepat", "Wangi"], jawaban: "Lengket & Macet" },
+            { level: "easy", soal: "Tombol utama untuk menyalakan PC disebut tombol...", pilihan: ["Power", "Volume", "Reset", "Spasi"], jawaban: "Power" },
+            { level: "easy", soal: "Alat alas khusus agar pergerakan mouse lancar disebut...", pilihan: ["Mousepad", "Meja Kaca", "Buku Tulis", "Lantai"], jawaban: "Mousepad" },
+            { level: "easy", soal: "Program/Aplikasi untuk menjaga PC dari serangan virus adalah...", pilihan: ["Antivirus", "Microsoft Word", "Google Chrome", "Winamp"], jawaban: "Antivirus" },
+            { level: "easy", soal: "Sering mematikan paksa dengan cabut kabel bisa merusak komponen...", pilihan: ["Harddisk", "Casing PC", "Meja", "Kursi"], jawaban: "Harddisk" },
+            { level: "easy", soal: "Kabel listrik komputer yang terkelupas berisiko bikin kita...", pilihan: ["Kesetrum", "Kedinginan", "Bahagia", "Kenyang"], jawaban: "Kesetrum" },
+            { level: "easy", soal: "Tempat penampungan sampah file sementara di Windows bernama...", pilihan: ["Recycle Bin", "My Computer", "Local Disk C", "Folder Baru"], jawaban: "Recycle Bin" },
+            { level: "easy", soal: "Layar monitor yang sangat kotor bikin mata kita cepat...", pilihan: ["Lelah/Sakit", "Sehat", "Terang", "Mengantuk"], jawaban: "Lelah/Sakit" },
+            { level: "easy", soal: "Kalau laptop tidak akan dipakai sampai besok, sebaiknya...", pilihan: ["Dimatikan total", "Dibiarkan Nyala", "Dibuang", "Dibongkar"], jawaban: "Dimatikan total" },
+            { level: "easy", soal: "Alat penyimpan daya listrik cadangan saat tiba-tiba mati lampu adalah...", pilihan: ["UPS", "USB", "CPU", "RAM"], jawaban: "UPS" },
+            { level: "easy", soal: "Tombol keyboard yang ukurannya paling PANJANG adalah...", pilihan: ["Spasi (Space)", "Enter", "Shift", "Capslock"], jawaban: "Spasi (Space)" },
+            { level: "easy", soal: "Menarik paksa/kasar kabel mouse bisa bikin kabelnya...", pilihan: ["Putus di dalam", "Makin Bersih", "Sedikit Longgar", "Makin kuat"], jawaban: "Putus di dalam" },
+            { level: "easy", soal: "Membuka dan menutup layar laptop sebaiknya dilakukan dengan...", pilihan: ["Pelan & Lembut", "Sangat Kasar", "Ditarik Cepat", "Dibanting"], jawaban: "Pelan & Lembut" },
+            { level: "easy", soal: "Jika layar terlalu terang menyilaukan, kita harus menurunkan...", pilihan: ["Brightness", "Volume Suara", "Kecepatan Mouse", "Resolusi"], jawaban: "Brightness" },
+
+            // ╔═══ 🟠 MEDIUM ═══╗
+            { level: "medium", soal: "Bagian komputer mana yang paling sering bersentuhan langsung dengan tangan dan rawan kotor?", pilihan: ["Keyboard dan Mouse", "CPU dan Motherboard", "Kabel Power dan UPS", "Harddisk dan RAM"], jawaban: "Keyboard dan Mouse" },
+            { level: "medium", soal: "Alat yang paling aman digunakan untuk membersihkan debu di sela-sela tombol keyboard adalah...", pilihan: ["Kuas kecil kering", "Kain pel basah", "Sikat kawat", "Tisu beralkohol"], jawaban: "Kuas kecil kering" },
+            { level: "medium", soal: "Cara mematikan komputer Windows yang benar dan aman adalah dengan mengeklik...", pilihan: ["Start > Shut Down", "Tombol Power Monitor", "Cabut kabel listrik", "Start > Restart"], jawaban: "Start > Shut Down" },
+            { level: "medium", soal: "Apa dampak langsung jika layar monitor terlalu kotor atau kusam?", pilihan: ["Mata pengguna cepat lelah", "Komputer langsung meledak", "Internet menjadi lambat", "Keyboard tidak bisa diketik"], jawaban: "Mata pengguna cepat lelah" },
+            { level: "medium", soal: "Kain jenis apa yang direkomendasikan untuk mengusap layar monitor?", pilihan: ["Lap microfiber kering", "Handuk mandi", "Tisu dapur basah", "Spons cuci piring"], jawaban: "Lap microfiber kering" },
+            { level: "medium", soal: "Sebelum membersihkan perangkat keras komputer, hal pertama yang WAJIB dilakukan adalah...", pilihan: ["Pastikan komputer MATI", "Menyalakan musik", "Membuka casing komputer", "Menyambungkan internet"], jawaban: "Pastikan komputer MATI" },
+            { level: "medium", soal: "Agar debu tidak mengganggu, sebaiknya komputer diletakkan di...", pilihan: ["Tempat kering & sirkulasi baik", "Dekat jendela kena hujan", "Di lantai tanpa alas", "Di tempat tertutup rapat"], jawaban: "Tempat kering & sirkulasi baik" },
+            { level: "medium", soal: "Makan dan minum di depan komputer sebaiknya dihindari karena...", pilihan: ["Tumpahan bikin korsleting", "Membuat kita lupa waktu", "Mouse menjadi lebih licin", "Komputer akan cemburu"], jawaban: "Tumpahan bikin korsleting" },
+            { level: "medium", soal: "Sebelum mencabut Flashdisk dari laptop, kita harus melakukan proses...", pilihan: ["Eject/Safely Remove", "Format disk", "Delete all files", "Copy paste file"], jawaban: "Eject/Safely Remove" },
+            { level: "medium", soal: "Jika debu menumpuk tebal di dalam CPU komputer, apa yang akan terjadi?", pilihan: ["Komputer cepat overheat", "Komputer menjadi dingin", "Suhu tidak akan berubah", "Komputer keluarkan es"], jawaban: "Komputer cepat overheat" },
+            { level: "medium", soal: "Tanda fisik jika keyboard komputer jarang dibersihkan adalah...", pilihan: ["Tombol berat/lengket ditekan", "Tombol akan mengetik sendiri", "Warna berubah jadi emas", "Kabel keyboard putus"], jawaban: "Tombol berat/lengket ditekan" },
+            { level: "medium", soal: "Menggunakan tisu basah langsung ke layar monitor dapat merusak...", pilihan: ["Lapisan pelindung (anti-glare)", "Kabel listrik monitor", "Kipas di dalam CPU", "Tombol power monitor"], jawaban: "Lapisan pelindung (anti-glare)" },
+            { level: "medium", soal: "Kebiasaan menutup paksa aplikasi secara terus-menerus bisa berdampak pada...", pilihan: ["Sistem error/file corrupt", "Kapasitas RAM bertambah", "Harddisk menjadi baru", "Monitor akan lebih terang"], jawaban: "Sistem error/file corrupt" },
+            { level: "medium", soal: "Selain debu, apa yang bisa membuat klik tombol mouse macet?", pilihan: ["Sisa keringat/makanan di jari", "Virus dari internet", "File yang terlalu besar", "Sinyal WiFi lemah"], jawaban: "Sisa keringat/makanan di jari" },
+            { level: "medium", soal: "Untuk membersihkan bagian LUAR casing PC, kita bisa menggunakan...", pilihan: ["Kain lap sedikit lembab", "Siraman air keran", "Bensin atau thiner", "Sikat gigi basah"], jawaban: "Kain lap sedikit lembab" },
+            { level: "medium", soal: "Perangkat lunak (software) apa yang berfungsi melindungi dari program jahat?", pilihan: ["Antivirus", "Microsoft Word", "Google Chrome", "Winamp"], jawaban: "Antivirus" },
+            { level: "medium", soal: "Membuka 20 aplikasi berat bersamaan akan membuat komputer...", pilihan: ["Bekerja lebih berat (Lemot)", "Lebih cepat dingin", "Menghemat listrik", "Lebih cepat rusak kabelnya"], jawaban: "Bekerja lebih berat (Lemot)" },
+            { level: "medium", soal: "Kenapa kita tidak boleh menumpuk ribuan file berat di layar Desktop?", pilihan: ["Bikin booting Windows lambat", "Layar monitor bisa pecah", "Mouse tidak bisa digerak", "Keyboard akan mati total"], jawaban: "Bikin booting Windows lambat" },
+            { level: "medium", soal: "Fungsi utama kipas (Fan) di dalam casing komputer adalah...", pilihan: ["Membuang panas komponen", "Menghasilkan suara mesin", "Meniup debu agar masuk", "Menghemat listrik CPU"], jawaban: "Membuang panas komponen" },
+            { level: "medium", soal: "Saat membersihkan layar dengan cairan khusus pembersih, cara benarnya...", pilihan: ["Semprot ke lap, baru usap", "Semprot langsung ke layar", "Celup layar ke cairan", "Campur sabun cuci piring"], jawaban: "Semprot ke lap, baru usap" },
+            { level: "medium", soal: "Berapa kali idealnya kita membersihkan keyboard/mouse yang dipakai tiap hari?", pilihan: ["Seminggu sekali", "Setahun sekali", "Jika sudah rusak saja", "10 tahun sekali"], jawaban: "Seminggu sekali" },
+            { level: "medium", soal: "Tanda-tanda komputer yang terkena virus/malware antara lain...", pilihan: ["PC lambat & muncul file aneh", "Monitor pfach tiba-tiba", "Keyboard keluar asap", "Kabel power meleleh"], jawaban: "PC lambat & muncul file aneh" },
+            { level: "medium", soal: "Merawat komputer bukan cuma fisik luar, tetapi juga merawat...", pilihan: ["Sistem dan file (Software)", "Meja kerjanya saja", "Buku panduannya", "Kotak kardusnya"], jawaban: "Sistem dan file (Software)" },
+            { level: "medium", soal: "Apakah boleh meletakkan tumpukan buku di atas lubang angin laptop?", pilihan: ["Tidak boleh, menghambat suhu", "Boleh, agar buku kering", "Boleh, agar tidak berdebu", "Tidak masalah asal mahal"], jawaban: "Tidak boleh, menghambat suhu" },
+            { level: "medium", soal: "Pembersihan komputer yang teratur dapat memperpanjang...", pilihan: ["Umur masa pakai perangkat", "Jalur koneksi internet", "Garansi toko online", "Panjang kabel charger"], jawaban: "Umur masa pakai perangkat" },
+
+            // ╔═══ 🔴 HARD ═══╗
+            { level: "hard", soal: "Mengapa mematikan paksa PC (cabut listrik langsung) sangat berbahaya?", pilihan: ["Risiko harddisk & sistem rusak", "Menghapus semua kontak HP", "Hanya merusak layar monitor", "Tagihan listrik melonjak"], jawaban: "Risiko harddisk & sistem rusak" },
+            { level: "hard", soal: "Jika bunyi kipas komputer terdengar jauh lebih keras menderu, menandakan...", pilihan: ["Kipas kotor atau overheat", "PC sedang dengar musik", "Bekerja sangat optimal", "File diunduh terlalu besar"], jawaban: "Kipas kotor atau overheat" },
+            { level: "hard", soal: "Apa yang terjadi jika sering cabut Flashdisk tanpa fitur 'Eject'?", pilihan: ["Data flashdisk rawan corrupt", "Kapasitas berkurang permanen", "Port USB komputer meleleh", "Flashdisk terkunci password"], jawaban: "Data flashdisk rawan corrupt" },
+            { level: "hard", soal: "Komputer mati sendiri saat mengetik lama. Penyebab paling umum adalah...", pilihan: ["Overheat karena ventilasi kotor", "Mouse kehabisan baterai", "Layar belum diatur kecerahan", "Koneksi internet terputus"], jawaban: "Overheat karena ventilasi kotor" },
+            { level: "hard", soal: "Menginstal aplikasi dari website tidak jelas berisiko tinggi...", pilihan: ["Membawa virus/malware ke PC", "Memori RAM bertambah besar", "Hapus garansi toko online", "Membuat PC kebal kerusakan"], jawaban: "Membawa virus/malware ke PC" },
+            { level: "hard", soal: "File sebaiknya disimpan di partisi D:, BUKAN di Local Disk C, karena...", pilihan: ["Disk C tempat sistem Windows", "Disk D lebih tahan banting", "Desktop menolak simpan foto", "Partisi D anti virus"], jawaban: "Disk C tempat sistem Windows" },
+            { level: "hard", soal: "Mengapa disarankan mengusap monitor satu arah saja dengan lap halus?", pilihan: ["Mencegah debu menggores layar", "Agar warna tidak pudar", "Karena layar sangat rapuh", "Itu hanya mitos belaka"], jawaban: "Mencegah debu menggores layar" },
+            { level: "hard", soal: "Muncul iklan pop-up terus menerus padahal tidak buka browser. Gejala...", pilihan: ["Adware/Malware di sistem", "Monitor rusak (hardware)", "Kipas CPU tidak berputar", "Keyboard mengetik sendiri"], jawaban: "Adware/Malware di sistem" },
+            { level: "hard", soal: "Cara merawat baterai laptop saat sedang di-*charge* sambil dipakai?", pilihan: ["Jangan taruh di atas kasur/bantal", "Isi daya meskipun sudah 100%", "Keluarkan baterai saat dipakai", "Bungkus pakai plastik"], jawaban: "Jangan taruh di atas kasur/bantal" },
+            { level: "hard", soal: "Salah satu tanda kerusakan dini pada Software (Sistem) adalah...", pilihan: ["File dokumen tiba-tiba corrupt", "Layar monitor berkedip fisik", "Spasi tidak merespon ditekan", "Suhu CPU sangat panas"], jawaban: "File dokumen tiba-tiba corrupt" },
+            { level: "hard", soal: "Layar buram padahal setelan kecerahan (brightness) sudah 100%. Kemungkinan...", pilihan: ["Panel monitor rusak (Hardware)", "Sistem Windows (Software)", "Kabel power kurang panjang", "Mouse optiknya kotor"], jawaban: "Panel monitor rusak (Hardware)" },
+            { level: "hard", soal: "Jika komputer tiba-tiba terasa sangat lambat (ngelag), langkah awalnya...", pilihan: ["Tutup aplikasi berat lalu restart", "Bawa ke tempat servis hari itu", "Pukul casing CPU perlahan", "Cabut listrik dan pindah stopkontak"], jawaban: "Tutup aplikasi berat lalu restart" },
+            { level: "hard", soal: "Pelindung keyboard (Keyboard Protector) silikon sangat berguna untuk...", pilihan: ["Cegah debu/air masuk ke sela", "Percepat ketikan 200 wpm", "Jaga layar tidak tergores", "Menurunkan suhu laptop"], jawaban: "Cegah debu/air masuk ke sela" },
+            { level: "hard", soal: "Rutin membersihkan 'Recycle Bin' (tempat sampah Windows) berfungsi untuk...", pilihan: ["Mengembalian ruang Harddisk", "Menghapus virus permanen", "Tingkatkan putaran kipas", "Bersihkan debu dalam monitor"], jawaban: "Mengembalian ruang Harddisk" },
+            { level: "hard", soal: "Aplikasi kasir tiba-tiba 'Not Responding' / Macet total, penyebabnya...", pilihan: ["RAM penuh kebanyakan buka tab", "Listrik kantor sedang turun", "Kabel mouse sedikit terkelupas", "Monitor tidak dilap seminggu"], jawaban: "RAM penuh kebanyakan buka tab" },
+            { level: "hard", soal: "Fitur bawaan 'Disk Cleanup' pada Windows digunakan secara khusus untuk...", pilihan: ["Hapus file sampah/cache otomatis", "Mencuci piringan fisik HDD", "Hapus semua file foto acak", "Ubah warna layar lebih cerah"], jawaban: "Hapus file sampah/cache otomatis" },
+            { level: "hard", soal: "Komputer di area pabrik butuh perawatan ekstra sering, karena...", pilihan: ["Partikel debu mikro cepat masuk", "Karyawan mengetik lebih cepat", "Listrik di pabrik lebih hemat", "Suhu pabrik selalu sangat dingin"], jawaban: "Partikel debu mikro cepat masuk" },
+            { level: "hard", soal: "Kabel power komputer terkelupas gigitan tikus. Tindakan paling aman...", pilihan: ["Ganti kabel karena rawan setrum", "Balut dengan selotip tipis", "Biarkan selama masih menyala", "Potong dan sambung kawat"], jawaban: "Ganti kabel karena rawan setrum" },
+            { level: "hard", soal: "Tujuan melakukan update rutin pada Antivirus dan Windows Defender?", pilihan: ["Tutup celah keamanan virus baru", "Ubah bentuk casing komputer", "Bikin kapasitas harddisk penuh", "Tingkatkan resolusi layar"], jawaban: "Tutup celah keamanan virus baru" },
+            { level: "hard", soal: "Kenapa pasta pendingin (thermal paste) prosesor perlu diganti tahunan?", pilihan: ["Pasta mengering, panas tak keluar", "Pasta menguap menjadi air", "Warna pasta berubah jelek", "Menghasilkan virus jika dibiarkan"], jawaban: "Pasta mengering, panas tak keluar" },
+            { level: "hard", soal: "Akibat buruk jika posisi monitor/laptop sering dijemur matahari dari jendela?", pilihan: ["Layar silau & komponen overheat", "Menyerap energi tenaga surya", "Warna monitor semakin tajam", "Laptop tidak perlu dicas lagi"], jawaban: "Layar silau & komponen overheat" },
+            { level: "hard", soal: "Kebiasaan buruk saat merapikan kabel mouse atau charger laptop adalah...", pilihan: ["Menggulung ketat & menekuk ujung", "Menyimpannya di dalam tas", "Membiarkannya lurus di meja", "Membersihkannya dengan lap"], jawaban: "Menggulung ketat & menekuk ujung" },
+            { level: "hard", soal: "Kursor mouse bergerak melompat-lompat sendiri di layar, kemungkinan karena...", pilihan: ["Lensa optik bawah tertutup debu/rambut", "Kapasitas RAM sudah penuh", "OS Windows belum update", "Kabel monitor tidak kencang"], jawaban: "Lensa optik bawah tertutup debu/rambut" },
+            { level: "hard", soal: "Guna alat UPS (Uninterruptible Power Supply) saat mati listrik adalah...", pilihan: ["Beri waktu simpan file & mematikan", "Menambah kecepatan internet", "Bersihkan motherboard otomatis", "Tambah volume suara speaker"], jawaban: "Beri waktu simpan file & mematikan" },
+            { level: "hard", soal: "Sebuah kantor jarang merawat PC-nya, dampak finansialnya adalah...", pilihan: ["Kerja lambat, produktivitas rugi", "Untung besar hemat biaya servis", "Karyawan jadi pintar merakit PC", "Gaji karyawan bisa dinaikkan"], jawaban: "Kerja lambat, produktivitas rugi" }
+        ];
+
+        // ═══════════════════════════════════════════
+        // GAME LOGIC & STATE
+        // ═══════════════════════════════════════════
+        let gameState = {
+            mode: 'solo', // solo, 2p
+            level: 'easy',
+            timeTotal: 60,
+            timeLeft: 60,
+            scoreLeft: 0,
+            scoreRight: 0,
+            ropePos: 50, // 0 = P1 win, 100 = P2 win
+            qLeft: null,
+            qRight: null,
+            pool: [],
+            timerInterval: null,
+            aiInterval: null,
+            isPlaying: false,
+            p1Name: "",
+            p2Name: "",
+            activeInput: 'p1'
+        };
+
+        // Audio Context (Synthesizer offline)
+        let audioCtx;
+        let isAudioMuted = false;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playSound(type) {
+            if (isAudioMuted) return;
+            initAudio();
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            if (type === 'click') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.1);
+                gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'correct') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(600, audioCtx.currentTime + 0.1);
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime + 0.2);
+                gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+            } else if (type === 'wrong') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.3);
+                gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+            } else if (type === 'win') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+                osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.2); // E5
+                osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.4); // G5
+                osc.frequency.setValueAtTime(1046.50, audioCtx.currentTime + 0.6); // C6
+                gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.0);
+                osc.start(); osc.stop(audioCtx.currentTime + 1.0);
+            } else if (type === 'tick') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+            }
+        }
+
+        function toggleAudio() {
+            isAudioMuted = !isAudioMuted;
+            document.getElementById('btn-audio').innerText = isAudioMuted ? '🔇 MUTE' : '🔊 AUDIO';
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {});
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+
+        // Screen Navigation
+        function showScreen(id) {
+            playSound('click');
+            document.querySelectorAll('.screen').forEach(el => el.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+            
+            document.getElementById('btn-back').style.visibility = (id === 'screen-menu') ? 'hidden' : 'visible';
+            
+            if(id === 'screen-menu') stopGame();
+        }
+
+        function goBack() { showScreen('screen-menu'); }
+
+        // Settings Setup
+        function selectMode(mode) {
+            playSound('click');
+            gameState.mode = mode;
+            
+            // Setup Name Input Screen
+            gameState.p1Name = "";
+            gameState.p2Name = "";
+            
+            if(mode === 'solo') {
+                document.getElementById('input-p2').classList.add('hidden');
+                document.getElementById('input-p1').innerText = "PLAYER 1_";
+                setActiveInput('p1');
+            } else {
+                document.getElementById('input-p2').classList.remove('hidden');
+                document.getElementById('input-p1').innerText = "PLAYER 1_";
+                document.getElementById('input-p2').innerText = "PLAYER 2";
+                setActiveInput('p1');
+            }
+            
+            showScreen('screen-name');
+        }
+
+        function setActiveInput(player) {
+            playSound('tick');
+            gameState.activeInput = player;
+            document.getElementById('input-p1').classList.remove('active');
+            document.getElementById('input-p2').classList.remove('active');
+            document.getElementById(`input-${player}`).classList.add('active');
+            
+            // Remove cursor from both, add to active
+            let txt1 = gameState.p1Name || "PLAYER 1";
+            let txt2 = gameState.p2Name || "PLAYER 2";
+            document.getElementById('input-p1').innerText = (player === 'p1') ? txt1 + "_" : txt1;
+            document.getElementById('input-p2').innerText = (player === 'p2') ? txt2 + "_" : txt2;
+        }
+
+        function vkPress(char) {
+            playSound('tick');
+            let currentName = gameState[gameState.activeInput + 'Name'];
+            
+            if(char === 'DEL') {
+                gameState[gameState.activeInput + 'Name'] = currentName.slice(0, -1);
+            } else if (char === 'SPACE') {
+                if(currentName.length < 12) gameState[gameState.activeInput + 'Name'] += " ";
+            } else {
+                if(currentName.length < 12) gameState[gameState.activeInput + 'Name'] += char; // Max 12 karakter
+            }
+            
+            let displayTxt = gameState[gameState.activeInput + 'Name'];
+            if(displayTxt === "") displayTxt = (gameState.activeInput === 'p1') ? "PLAYER 1" : "PLAYER 2";
+            document.getElementById(`input-${gameState.activeInput}`).innerText = displayTxt + "_";
+        }
+
+        // Listener untuk keyboard fisik di layar "MASUKKAN NAMA"
+        document.addEventListener('keydown', function(event) {
+            if(!document.getElementById('screen-name').classList.contains('hidden')) {
+                const key = event.key.toUpperCase();
+                
+                if(key >= 'A' && key <= 'Z' && key.length === 1) {
+                    vkPress(key);
+                } else if(event.key === 'Backspace' || event.key === 'Delete') {
+                    vkPress('DEL');
+                } else if(event.key === ' ') {
+                    event.preventDefault(); // Mencegah layar scroll ke bawah
+                    vkPress('SPACE');
+                } else if(event.key === 'Enter') {
+                    confirmNames();
+                }
+            }
+        });
+
+        function confirmNames() {
+            playSound('click');
+            if(gameState.p1Name.trim() === "") gameState.p1Name = "PLAYER 1";
+            if(gameState.mode === '2p' && gameState.p2Name.trim() === "") gameState.p2Name = "PLAYER 2";
+            showScreen('screen-settings');
+        }
+
+        function selectLevel(lvl) {
+            playSound('click');
+            gameState.level = lvl;
+            // Hapus class active-select dari semua tombol level, lalu tambahkan ke yang dipilih
+            ['easy','medium','hard'].forEach(l => document.getElementById(`lvl-${l}`).classList.remove('active-select'));
+            document.getElementById(`lvl-${lvl}`).classList.add('active-select');
+        }
+
+        function selectTime(t) {
+            playSound('click');
+            gameState.timeTotal = t;
+            // Hapus class active-select dari semua tombol waktu, lalu tambahkan ke yang dipilih
+            [30,45,60].forEach(tx => document.getElementById(`time-${tx}`).classList.remove('active-select'));
+            document.getElementById(`time-${t}`).classList.add('active-select');
+        }
+
+        // Gameplay Engine
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function buildPool() {
+            let pool = BANK_SOAL.filter(s => s.level === gameState.level);
+            if (pool.length === 0) pool = BANK_SOAL; // Fallback
+            return shuffleArray([...pool]);
+        }
+
+        function startGame() {
+            playSound('click');
+            gameState.pool = buildPool();
+            gameState.scoreLeft = 0;
+            gameState.scoreRight = 0;
+            gameState.ropePos = 50;
+            gameState.timeLeft = gameState.timeTotal;
+            gameState.isPlaying = true;
+
+            // Setup UI labels
+            let p1Name = gameState.p1Name.toUpperCase();
+            let p2Name = gameState.p2Name.toUpperCase();
+            
+            // LOGIKA ASET GAMBAR:
+            let imgLeft = "asset/player_left.png";
+            let imgRight = "asset/player_right.png"; // Untuk 2 Player
+            
+            if(gameState.mode === 'solo') { 
+                p2Name = "OVERHEAT (AI)"; 
+                imgRight = "asset/enemy_ai.png"; // Untuk Lawan Komputer
+            }
+            
+            // Set sumber gambar ke elemen img
+            document.getElementById('avatar-left').src = imgLeft;
+            document.getElementById('avatar-right').src = imgRight;
+            
+            document.getElementById('turn-ind-left').innerText = p1Name;
+            document.getElementById('turn-ind-right').innerText = p2Name;
+
+            // Konfigurasi Layout Split/Solo
+            if(gameState.mode === 'solo') {
+                document.getElementById('panel-right').style.display = 'none';
+                document.getElementById('info-right').style.visibility = 'hidden'; // Menjaga timer tetap di tengah
+                document.getElementById('panel-left').style.display = 'flex';
+                document.getElementById('panel-left').style.maxWidth = '800px';
+                document.getElementById('panel-left').style.margin = '0 auto';
+                loadQuestion('left');
+            } else {
+                document.getElementById('panel-right').style.display = 'flex';
+                document.getElementById('info-right').style.visibility = 'visible'; // Tampilkan untuk 2P
+                document.getElementById('panel-left').style.display = 'flex';
+                document.getElementById('panel-left').style.maxWidth = 'none';
+                document.getElementById('panel-left').style.margin = '0';
+                loadQuestion('left');
+                loadQuestion('right');
+            }
+            
+            updateVisuals();
+            showScreen('screen-game');
+
+            // Timer
+            clearInterval(gameState.timerInterval);
+            gameState.timerInterval = setInterval(() => {
+                gameState.timeLeft--;
+                document.getElementById('timer-box').innerText = gameState.timeLeft;
+                
+                if(gameState.timeLeft <= 10) {
+                    playSound('tick');
+                    document.getElementById('timer-box').classList.add('timer-warning');
+                } else {
+                    document.getElementById('timer-box').classList.remove('timer-warning');
+                }
+
+                if(gameState.timeLeft <= 0) endGame("timeout");
+            }, 1000);
+
+            // AI Logic for Solo mode (pulls rope automatically over time)
+            clearInterval(gameState.aiInterval);
+            if(gameState.mode === 'solo') {
+                gameState.aiInterval = setInterval(() => {
+                    if(gameState.isPlaying) {
+                        gameState.ropePos += 1.5; // AI pulls right
+                        updateVisuals();
+                        if(gameState.ropePos >= 100) endGame("ko-right");
+                    }
+                }, 1000);
+            }
+        }
+
+        function loadQuestion(side) {
+            if(!gameState.isPlaying) return;
+            if(gameState.pool.length === 0) gameState.pool = buildPool(); // loop if run out
+
+            const q = gameState.pool.pop();
+            if (side === 'left') gameState.qLeft = q;
+            else gameState.qRight = q;
+
+            document.getElementById(`q-text-${side}`).innerText = q.soal;
+            
+            let opts = [...q.pilihan];
+            opts = shuffleArray(opts);
+
+            for(let i=0; i<4; i++){
+                let btn = document.getElementById(`opt-${side}-${i}`);
+                btn.innerText = String.fromCharCode(65+i) + ". " + opts[i];
+                btn.dataset.text = opts[i];
+                btn.className = "option-btn";
+                btn.disabled = false;
+            }
+        }
+
+        function checkAnswer(side, idx) {
+            if(!gameState.isPlaying) return;
+            
+            let btn = document.getElementById(`opt-${side}-${idx}`);
+            let ans = btn.dataset.text;
+            let currentQ = side === 'left' ? gameState.qLeft : gameState.qRight;
+            let isCorrect = (ans === currentQ.jawaban);
+
+            // Lock buttons for this specific panel
+            for(let i=0; i<4; i++) document.getElementById(`opt-${side}-${i}`).disabled = true;
+
+            if(isCorrect) {
+                btn.classList.add('correct');
+                playSound('correct');
+                createParticles(btn, side === 'left' ? 'green' : 'yellow');
+                
+                if(side === 'left') {
+                    gameState.scoreLeft += 100;
+                    gameState.ropePos -= 10; // Pull left
+                } else {
+                    gameState.scoreRight += 100;
+                    gameState.ropePos += 10; // Pull right
+                }
+            } else {
+                btn.classList.add('wrong');
+                playSound('wrong');
+                
+                let panel = document.getElementById(`panel-${side}`);
+                panel.classList.add('shake');
+                panel.style.backgroundColor = side === 'left' ? 'rgba(102,252,241,0.1)' : 'rgba(255,0,85,0.1)';
+                setTimeout(() => {
+                    panel.classList.remove('shake');
+                    panel.style.backgroundColor = 'rgba(255,255,255,0.05)';
+                }, 500);
+
+                // Show correct answer on this panel
+                for(let i=0; i<4; i++){
+                    let optBtn = document.getElementById(`opt-${side}-${i}`);
+                    if(optBtn.dataset.text === currentQ.jawaban) {
+                        optBtn.classList.add('correct');
+                    }
+                }
+
+                // Penalties
+                if(side === 'left') {
+                    gameState.scoreLeft = Math.max(0, gameState.scoreLeft - 50);
+                    gameState.ropePos += (gameState.mode === 'solo' ? 15 : 5); // Monster pulls harder
+                } else {
+                    gameState.scoreRight = Math.max(0, gameState.scoreRight - 50);
+                    gameState.ropePos -= 5;
+                }
+            }
+
+            // Enforce rope limits & update
+            gameState.ropePos = Math.max(0, Math.min(100, gameState.ropePos));
+            updateVisuals();
+
+            // Check Instant KO
+            if(gameState.ropePos <= 0) { endGame("ko-left"); return; }
+            if(gameState.ropePos >= 100) { endGame("ko-right"); return; }
+
+            // Next Question for this specific player
+            setTimeout(() => {
+                loadQuestion(side);
+            }, 1500);
+        }
+
+        function updateVisuals() {
+            document.getElementById('score-left').innerText = gameState.scoreLeft;
+            document.getElementById('score-right').innerText = gameState.scoreRight;
+            document.getElementById('rope-marker').style.left = `${gameState.ropePos}%`;
+        }
+
+        function endGame(reason) {
+            gameState.isPlaying = false;
+            clearInterval(gameState.timerInterval);
+            clearInterval(gameState.aiInterval);
+            playSound('win');
+
+            let title = "WAKTU HABIS!";
+            if(reason === "ko-left") title = "INSTANT KO! KIRI MENANG!";
+            if(reason === "ko-right") title = "INSTANT KO! KANAN MENANG!";
+
+            document.getElementById('result-title').innerText = title;
+            document.getElementById('final-score-left').innerText = gameState.scoreLeft;
+            document.getElementById('final-score-right').innerText = gameState.scoreRight;
+
+            let winnerText = "";
+            let p1 = gameState.p1Name.toUpperCase();
+            let p2 = (gameState.mode === 'solo') ? "OVERHEAT" : gameState.p2Name.toUpperCase();
+
+            if(gameState.ropePos < 50) winnerText = `${p1} MENANG! 🏆`;
+            else if(gameState.ropePos > 50) winnerText = `${p2} MENANG! 💥`;
+            else winnerText = "PERTANDINGAN SERI! 🤝";
+            
+            document.getElementById('result-winner').innerText = winnerText;
+            document.getElementById('result-winner').style.color = (gameState.ropePos < 50) ? "var(--retro-cyan)" : (gameState.ropePos > 50 ? "var(--retro-magenta)" : "white");
+
+            // Save to Leaderboard Offline Automatically
+            if(gameState.scoreLeft > 0) saveLeaderboard(gameState.p1Name, gameState.scoreLeft);
+            if(gameState.mode === '2p' && gameState.scoreRight > 0) saveLeaderboard(gameState.p2Name, gameState.scoreRight);
+
+            setTimeout(() => showScreen('screen-result'), 1000);
+        }
+
+        function stopGame() {
+            gameState.isPlaying = false;
+            clearInterval(gameState.timerInterval);
+            clearInterval(gameState.aiInterval);
+        }
+
+        // Leaderboard System (Offline LocalStorage)
+        function saveLeaderboard(playerName, score) {
+            if(score <= 0) return;
+            let lb = JSON.parse(localStorage.getItem('arcade_edu_lb')) || [];
+            lb.push({ name: playerName.toUpperCase(), score: score });
+            lb.sort((a,b) => b.score - a.score);
+            lb = lb.slice(0, 10); // Keep top 10
+            localStorage.setItem('arcade_edu_lb', JSON.stringify(lb));
+        }
+
+        // Show Leaderboard
+        function showLeaderboard() {
+            let lb = JSON.parse(localStorage.getItem('arcade_edu_lb')) || [];
+            let table = document.getElementById('lb-table');
+            table.innerHTML = "<tr><th>Peringkat</th><th>Nama/Tim</th><th>Skor</th></tr>";
+            
+            if(lb.length === 0) {
+                table.innerHTML += "<tr><td colspan='3'>Belum ada data. Ayo mainkan!</td></tr>";
+            } else {
+                lb.forEach((entry, i) => {
+                    table.innerHTML += `<tr><td>#${i+1}</td><td>${entry.name}</td><td>${entry.score}</td></tr>`;
+                });
+            }
+            showScreen('screen-leaderboard');
+        }
+
+        // Teacher Mode System
+        let logoTimer;
+        document.getElementById('game-title').addEventListener('mousedown', () => {
+            logoTimer = setTimeout(() => { document.getElementById('modal-teacher').classList.remove('hidden'); }, 3000);
+        });
+        document.getElementById('game-title').addEventListener('mouseup', () => clearTimeout(logoTimer));
+        document.getElementById('game-title').addEventListener('mouseleave', () => clearTimeout(logoTimer));
+        
+        // Touch support for TV
+        document.getElementById('game-title').addEventListener('touchstart', (e) => {
+            logoTimer = setTimeout(() => { document.getElementById('modal-teacher').classList.remove('hidden'); }, 3000);
+        });
+        document.getElementById('game-title').addEventListener('touchend', () => clearTimeout(logoTimer));
+
+        function checkPIN() {
+            if(document.getElementById('pin-input').value === PIN_GURU) {
+                document.getElementById('modal-teacher').classList.add('hidden');
+                document.getElementById('modal-dashboard').classList.remove('hidden');
+                document.getElementById('pin-input').value = "";
+                
+                // Show stats
+                let easyCount = BANK_SOAL.filter(s=>s.level==='easy').length;
+                let medCount = BANK_SOAL.filter(s=>s.level==='medium').length;
+                let hardCount = BANK_SOAL.filter(s=>s.level==='hard').length;
+                document.getElementById('stats-soal').innerHTML = `
+                    <li>🟢 Mudah: ${easyCount} Soal</li>
+                    <li>🟠 Sedang: ${medCount} Soal</li>
+                    <li>🔴 Sulit: ${hardCount} Soal</li>
+                    <li><b>Total: ${BANK_SOAL.length} Soal</b></li>
+                `;
+            } else {
+                document.getElementById('pin-input').value = "";
+                document.getElementById('pin-input').placeholder = "PIN SALAH!";
+                setTimeout(() => document.getElementById('pin-input').placeholder = "", 2000);
+            }
+        }
+
+        function closeTeacherModal() {
+            document.getElementById('modal-teacher').classList.add('hidden');
+            document.getElementById('modal-dashboard').classList.add('hidden');
+            document.getElementById('pin-input').value = "";
+        }
+
+        function resetLeaderboard() {
+            localStorage.removeItem('arcade_edu_lb');
+            let btn = document.getElementById('btn-reset');
+            btn.innerText = "✅ Data Berhasil Direset";
+            setTimeout(() => btn.innerText = "🗑️ Reset Papan Skor", 2000);
+        }
+
+        // Particle Effect
+        function createParticles(element, colorType) {
+            const rect = element.getBoundingClientRect();
+            for(let i=0; i<15; i++) {
+                let p = document.createElement('div');
+                p.className = 'particle';
+                p.style.left = (rect.left + rect.width/2) + 'px';
+                p.style.top = (rect.top + rect.height/2) + 'px';
+                p.style.width = Math.random()*10+5 + 'px';
+                p.style.height = p.style.width;
+                p.style.backgroundColor = colorType === 'green' ? '#00ff66' : '#ffde00';
+                
+                let angle = Math.random() * Math.PI * 2;
+                let speed = Math.random() * 5 + 2;
+                let vx = Math.cos(angle) * speed;
+                let vy = Math.sin(angle) * speed;
+                
+                document.body.appendChild(p);
+                
+                let opacity = 1;
+                let anim = setInterval(() => {
+                    let l = parseFloat(p.style.left);
+                    let t = parseFloat(p.style.top);
+                    p.style.left = (l + vx) + 'px';
+                    p.style.top = (t + vy) + 'px';
+                    opacity -= 0.02;
+                    p.style.opacity = opacity;
+                    if(opacity <= 0) { clearInterval(anim); p.remove(); }
+                }, 16);
+            }
+        }
+        
+    </script>
+</body>
+</html>
